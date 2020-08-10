@@ -70,12 +70,16 @@ import org.contikios.cooja.Simulation;
 import org.contikios.cooja.interfaces.MoteID;
 import org.contikios.cooja.interfaces.Position;
 
+
+
 /**
  * A dialog for adding motes.
  *
  * @author Fredrik Osterlind
  */
 public class AddMoteDialog extends JDialog {
+
+
 
   private static final long serialVersionUID = 1L;
   private static Logger logger = Logger.getLogger(AddMoteDialog.class);
@@ -479,6 +483,45 @@ public class AddMoteDialog extends JDialog {
                   ((Number) startZ.getValue()).doubleValue(), ((Number) endZ
                       .getValue()).doubleValue());
 
+
+
+
+
+//#############################################################################
+                 //Cria obj da classe ListEvents
+               ListEvents obj = new ListEvents();
+
+				//Cria obj da classe PriorityEvents()
+			   PriorityEvents priEven = new PriorityEvents();
+
+                //Captura os limites inferiores e superiores de X,Y e Z do cooja
+              String BEGIN_X = (startX.getValue()).toString();
+              String  END_X = (endX.getValue()).toString();
+              String BEGIN_Y = (startY.getValue()).toString();
+              String  END_Y = (endY.getValue()).toString();
+              String BEGIN_Z = (startZ.getValue()).toString();
+              String END_Z = (endZ.getValue()).toString();
+
+                //Converte de String pra Int os limites inferiores e superiores
+              int startX = Integer.parseInt(BEGIN_X);
+              int endX = Integer.parseInt(END_X);
+              int startY = Integer.parseInt(BEGIN_Y);
+              int endY =  Integer.parseInt(END_Y);
+              int startZ = Integer.parseInt(BEGIN_Z);
+              int endZ = Integer.parseInt(END_Z);;
+ 
+                //Envia pra classe ListEvents os limites capturados do cooja
+              obj.set_area(startX,endX,startY,endY,startZ,endZ); 
+
+                //Envia pra classe ListEvents o número de motes criados
+              obj.set_count_motes(newMotes.size());
+            
+//#############################################################################
+
+
+
+
+
           if (positioner == null) {
             logger.fatal("Could not create positioner");
             return;
@@ -488,6 +531,21 @@ public class AddMoteDialog extends JDialog {
             Position newPosition = newMotes.get(i).getInterfaces().getPosition();
             if (newPosition != null) {
               double[] newPositionArray = positioner.getNextPosition();
+
+
+
+//#############################################################################
+                //Envia pra classe ListEvents o id de cada mote
+              obj.set_id_mote(i);
+
+                //Envia pra classe ListEvents coordenadas X,Y e Z de cada mote
+              obj.set_coordinates(newPositionArray[0],newPositionArray[1],newPositionArray[2]);  
+            
+//#############################################################################
+
+
+
+
               if (newPositionArray.length >= 3) {
                 newPosition.setCoordinates(newPositionArray[0],
                     newPositionArray[1], newPositionArray[2]);
@@ -502,6 +560,36 @@ public class AddMoteDialog extends JDialog {
             }
           }
 
+
+
+
+
+//#############################################################################
+
+
+               //Envia pra classe ListEvents o número de eventos
+             obj.set_time(100);
+
+               //Chama a função que salva os eventos em arquivo
+             obj.save_events();
+
+               //Chama a função que salva as coordenadas em arquivo
+             obj.save_coordinate();
+
+               //Salva as posições em arquivo CSV
+             obj.save_positions_in_CSV();
+
+	     //Chama a função que salva as prioridades dos eventos em arquivo
+	     priEven.save_priority(obj);
+
+	     //Chama a função que salva eventos para o realsim
+	     priEven.save_realsim_events(obj);
+
+//#############################################################################
+
+
+
+
           /* Set unique mote id's for all new motes
            * TODO ID should be provided differently; not rely on the unsafe MoteID interface */
           int nextMoteID = 1;
@@ -513,6 +601,7 @@ public class AddMoteDialog extends JDialog {
           }
           for (Mote m: newMotes) {
             MoteID moteID = m.getInterfaces().getMoteID();
+
             if (moteID != null) {
               moteID.setMoteID(nextMoteID++);
             } else {
