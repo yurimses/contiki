@@ -58,7 +58,7 @@ LIST(observers_list);
 /*---------------------------------------------------------------------------*/
 /*- Internal API ------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-static coap_observer_t *
+coap_observer_t *
 add_observer(uip_ipaddr_t *addr, uint16_t port, const uint8_t *token,
              size_t token_len, const char *uri, int uri_len)
 {
@@ -230,7 +230,9 @@ coap_notify_observers_sub(resource_t *resource, const char *subpath)
       if((transaction = coap_new_transaction(coap_get_mid(), &obs->addr, obs->port))) {
         if(obs->obs_counter % COAP_OBSERVE_REFRESH_INTERVAL == 0) {
           PRINTF("           Force Confirmable for\n");
-          notification->type = COAP_TYPE_CON;
+          //notification->type = COAP_TYPE_CON; 
+	  //Alterado para não ter mensagens CON
+	  //COAP_OBSERVE_REFRESH_INTERVAL era 20
         }
 
         PRINTF("           Observer ");
