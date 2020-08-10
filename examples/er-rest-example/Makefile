@@ -22,6 +22,8 @@ endif
 
 PROJECTDIRS += $(REST_RESOURCES_DIR)
 PROJECT_SOURCEFILES += $(REST_RESOURCES_FILES)
+PROJECT_SOURCEFILES += load-coordinate.c
+PROJECT_SOURCEFILES += calculate-distance.c
 
 # linker optimizations
 SMALL=1
@@ -34,6 +36,7 @@ APPS+=powertrace
 # optional rules to get assembly
 #CUSTOM_RULE_C_TO_OBJECTDIR_O = 1
 #CUSTOM_RULE_S_TO_OBJECTDIR_O = 1
+
 
 CONTIKI_WITH_IPV6 = 1
 include $(CONTIKI)/Makefile.include
