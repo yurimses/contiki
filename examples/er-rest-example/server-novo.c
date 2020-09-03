@@ -14,12 +14,18 @@
 #include "net/ipv6/uip-ds6.h"
 #include "simple-udp.h"
 #include "er-coap-observe.h"
-//#include "er-coap-observe-client.h"
+
 
 //Arquivo com as coordenadas dos motes
-#include "coordinates.h"
+//#include "coordinates.h"
 //Arquivo com as coordenadas dos eventos
-#include "events.h"
+//#include "events.h"
+
+//Arquivo com os arrays de coordenadas
+#include "load-coordinate.h"
+//Arquivo para calcular a distancia euclidiana
+#include "calculate-distance.h"
+
 //Arquivo com flag sobre evento e a informação sobre ele
 #include "resources/res-hello.h"
 //Arquivo com as informações de classificação / nível de eventos
@@ -66,6 +72,9 @@ define PRINT6ADDR(addr) PRINTF("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%0
  */
 
 //#############################################################################
+//Total de motes na simulação
+int countmotes = 0;
+
 //Contagem de eventos
 unsigned int event_count=0; 
 
@@ -174,33 +183,47 @@ receiver(struct simple_udp_connection *c,
 // 1 ocorreu evento crítico (nivel 1)
 // 2 ocorreu evento não crítico (nivel 2)
 
+static void print_vector(int n){
+	int ct_print_vt = 0;
+	for (ct_print_vt = 0; ct_print_vt < n; ct_print_vt++){
+		printf("%d ", vt[ct_print_vt]);
+	}
+	printf("\n");
+}
+
+static int sum_vector(int n){
+	int ct_sm_vt, sm_vt = 0;
+	for (ct_sm_vt = 0; ct_sm_vt < n; ct_sm_vt++){
+		sm_vt += vt[ct_sm_vt]; 
+	}
+	return sm_vt;
+}
+
+static void k_out_of_n(int k, int sum){
+	//k: limite que determina a ocorrência de evento
+	//sum: soma dos indices de valor 1 	
+	if (sum >= k){
+		printf("Verdadeiro Positivo\n");
+	}else{
+		printf("Falso Positivo\n");	
+	}
+}
+
+
 //Função para limpar o contador e o vetor da função receiver
 static void clean(void *ptr){
             int k;
-	    //K-out-of-N
-	    //Soma para verificar a ocorrência de evento
-	    int sum = 0;
-	    if (count_motes < 10){ 
-		    for (k = 0; k < count_motes; k++){
-			sum += vt[k];
-			printf("%d ", vt[k]);
-		    }
-	    }
-	    if (count_motes == 10){
-	    		for (k = 0; k < 10; k++){
-				sum += vt[k];
-				printf("%d ", vt[k]);			
-			}	
-	    }
-	    
-            printf("\nSoma: %d\n", sum);
-	    
-            if (sum >= 1){
-		printf("Verdadeiro Positivo (TP)\n");
+	    if (countmotes < 10){
+		print_vector(countmotes);
 	    }else{
-		printf("Falso Positivo (FP)\n");
+		print_vector(10);
 	    }
-            
+   
+	    int sum = 0;
+	    sum = sum_vector(countmotes);
+	    printf("Soma %d\n", sum);
+	    k_out_of_n(1 ,sum);
+	    
 	    count = 0;
 	    for (k = 0; k < 10; k++){
 	   	vt[k] = 0;
@@ -265,7 +288,7 @@ powertrace_start(CLOCK_SECOND * seconds, seconds, fixed_perc_energy, variation);
   SENSORS_ACTIVATE(light_sensor);  
 #endif
 
-//Cod pra add observador sem a necessidade de client
+//Cod pra add observador sem necessidade de client
 	etimer_set(&add_obs_timer, CLOCK_SECOND*50); 
 	PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&add_obs_timer));
 	static uint16_t addr_test[8];
@@ -284,17 +307,9 @@ powertrace_start(CLOCK_SECOND * seconds, seconds, fixed_perc_energy, variation);
 	addr_test[3], addr_test[4],addr_test[5],addr_test[6],addr_test[7]);
 
 	add_observer(&dest_addr, 0, 0, 0, "res-hello", 9);
-	/*coap_obs_add_observee(uip_ipaddr_t *addr, uint16_t port,
-            const uint8_t *token, size_t token_len, const char *url,
-            notification_callback_t notification_callback,
-            void *data)*/	
-	//coap_obs_add_observee(&dest_addr, 0, 0, 0, "res-hello", 0, 0)
-	printf("end de teste\n");
+	printf("Endereco destino OBS\n");
 	uip_debug_ipaddr_print(&dest_addr);
 	printf("\n");
-
-
-
 
   /* Define application-specific events here. */
   while(1) {
@@ -321,7 +336,6 @@ PROCESS_THREAD(test_timer_process, ev, data){
 	char msg[100];
 
 	PROCESS_BEGIN();
-	//rest_activate_resource(&res_hello, "res-hello");
 	static struct etimer et;
 	//Endereço a ser usado pelo broadcast
   	uip_ipaddr_t addr;
@@ -331,74 +345,33 @@ PROCESS_THREAD(test_timer_process, ev, data){
                       NULL, UDP_PORT,
                       receiver); 
 
-    	//Armazena o id do próprio mote  
-    	int my_id;
-
-    	//Vetor para as coordenadas X,Y e Z do próprio mote
-    	unsigned int my_coordinate[3];
-
-    	//Vetor para as coordenadas dos eventos
-    	unsigned int event[3];
-
-    	//Vetor para armazenar a diferença na subtração entre as coordenadas
-    	unsigned int diff[3];
-
-    	//Níveis de classificação / prioridade
-    	unsigned int priority;
-
+    	
 	while(1) {
 	    etimer_set(&et, CLOCK_SECOND*SECONDS);
 	    PROCESS_WAIT_EVENT();
-			
-        //Mote busca o seu próprio id e subtrai 2 de seu valor   
-        my_id=node_id-2;
+	    
+            load_id();  
+	    load_coordinate_mote();
+            show_coordinate_mote();
+	    load_coordinate_event(event_count);
+	    show_coordinate_event();
+            calculate_difference();
+	    int distance = euclidian_distance();
+	    print_distance(distance);
+		
+            //Definir o total de motes
+	    countmotes = return_count_motes();	
+	    printf("valor countmotes: %d\n", countmotes);
 
-        /*Mote busca sua própria coordenada X,Y e Z dentro da matriz de coordenadas
-        no arquivo coordinate.h e armazena elas no vetor*/
-        my_coordinate[0]=(unsigned int)(motes_coordinates[my_id][0]*100);
-        my_coordinate[1]=(unsigned int)(motes_coordinates[my_id][1]*100);
-        my_coordinate[2]=(unsigned int)(motes_coordinates[my_id][2]*100);
-
-        //O mote exibe os valores X,Y e Z de sua coordenada
-        //printf("Coordenada X: %u\n",my_coordinate[0]);
-        //printf("Coordenada Y: %u\n",my_coordinate[1]);
-        //printf("Coordenada Z: %u\n",my_coordinate[2]);
-
-        //Se valor do contador de eventos for menor que total de eventos
-        if(event_count<total_events){
-            /*Mote busca a coordenada X,Y e Z dentro da matriz de eventos
-            no arquivo events.h e armazena elas no vetor*/
-            event[0]=(unsigned int)(events_coordinates[event_count][0]*100);
-            event[1]=(unsigned int)(events_coordinates[event_count][1]*100);
-            event[2]=(unsigned int)(events_coordinates[event_count][2]*100);
-
-            //Mote exibe os valores X,Y e Z do evento
-            //printf("Coordenada X do evento: %u\n",event[0]);
-            //printf("Coordenada Y do evento: %u\n",event[1]);
-            //printf("Coordenada Z do evento: %u\n",event[2]);
-
-            int i;
             int sender_id = node_id;
-
-            //Calcula a diferença entre coordenadas X,Y e Z do mote e do evento
-            for(i=0;i<3;i++){
-                if(event[i]>my_coordinate[i]){
-                    diff[i]= event[i]-my_coordinate[i];  
-                }else{
-                    diff[i]=my_coordinate[i]-event[i];
-                }
-            }
-
-            //Calcula a distância euclidiana entre o mote e o evento
-            unsigned distance = (unsigned int)((sqrt(pow(diff[0],2)+pow(diff[1],2)+pow(diff[2],2))));
-
-            printf("Distancia: %u\n",distance);
+	    //Níveis de classificação / prioridade
+    	    int priority;
       
             //Estabelecendo prioridade para cada evento
             priority = priority_events[event_count];
 
             //Se a distancia calculada for menor igual ao range, o mote vai enviar broadcast
-            if((distance/100)<=RANGE){	
+            if(distance<=RANGE){	
     	        printf("Detectou evento\n");
     	        printf("Enviando broadcast\n");	
 		
@@ -427,8 +400,6 @@ PROCESS_THREAD(test_timer_process, ev, data){
                 memcpy(info_event,str,sizeof(str));
             }
 
-        } //fim do event_count<total_events
-
         //Acrescenta 1 para o próximo evento
         event_count++;  
         
@@ -438,7 +409,6 @@ PROCESS_THREAD(test_timer_process, ev, data){
 	//Se o tempo estimado expirar, reinicia a contagem
 	if(etimer_expired(&et)) {
 	    etimer_reset(&et);
-	    //ctimer_set(&timer, CLOCK_SECOND*10, cleanevents, NULL);
         }
         
 	} //fim do while
