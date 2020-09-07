@@ -83,6 +83,9 @@ static int count = 0;
 
 //Vetor para função clean
 static int vt[10];
+
+//Flag para resposta da função clean
+static int is_event_cln = 0;
 //#############################################################################
 
 
@@ -197,8 +200,10 @@ static void clean(void *ptr){
 	    
             if (sum >= 1){
 		printf("Verdadeiro Positivo (TP)\n");
+		is_event_cln = 1;
 	    }else{
 		printf("Falso Positivo (FP)\n");
+		is_event_cln = 1;
 	    }
             
 	    count = 0;
@@ -321,6 +326,8 @@ PROCESS_THREAD(test_timer_process, ev, data){
 	char msg[100];
 
 	PROCESS_BEGIN();
+	is_event_cln = 0;
+
 	//rest_activate_resource(&res_hello, "res-hello");
 	static struct etimer et;
 	//Endereço a ser usado pelo broadcast
@@ -433,7 +440,9 @@ PROCESS_THREAD(test_timer_process, ev, data){
         event_count++;  
         
 	//Para a função clean ser chamada a cada 30 segundos	
-	ctimer_set(&timer, CLOCK_SECOND*30, clean, NULL);        
+	ctimer_set(&timer, CLOCK_SECOND*30, clean, NULL); 
+
+	printf("is_event_cln %d\n", is_event_cln);       
 
 	//Se o tempo estimado expirar, reinicia a contagem
 	if(etimer_expired(&et)) {
